@@ -1,4 +1,23 @@
-# p2p-chat
+<br />
+<br />
+
+<p align="center">
+<img src="docs/images/logo1.svg" width="240">
+</p>
+
+<br />
+<br />
+
+## About p2p-chat
+
+![Buildkite](https://img.shields.io/buildkite/0eae07525f8e44a19b48fa937813e2c21ee04aa351361cd851)
+![stable-release](https://img.shields.io/badge/p2pChat-实验性项目-da282a)
+![starts](https://shields.io/github/stars/HighValyrian/p2p-chat)
+[![Telegram Group][telegram-badge]][telegram-url]
+
+[telegram-badge]: https://cdn.jsdelivr.net/gh/Patrolavia/telegram-badge@8fe3382b3fd3a1c533ba270e608035a27e430c2e/chat.svg
+[telegram-url]: https://t.me/+SiZ53KtzsMw0M2Rl
+
 一个基于rust-p2p的点对点的聊天协议。（这是一个实验性的项目）
 
 ## 目标
