@@ -1,10 +1,19 @@
+[workspace]
+members = [
+ "pchat"
+]
+
 [package]
 name = "p2p-rust"
 version = "0.1.0"
 edition = "2021"
 
+[workspace.metadata.workspaces]
+version = "0.0.0"
+exclude = [ "pchat" ]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-libp2p = {version = "0.49.0", features = ["tcp","dns", "mdns", "async-std", "websocket", "noise", "mplex", "yamux","ping"] } 
+[workspace.dependencies]
+libp2p = {version = "0.50.0", features = ["tcp","dns", "mdns", "async-std", "websocket", "noise", "mplex", "yamux","ping"] } 
 tokio = {version = "1.22.0",features = ["full"]}
