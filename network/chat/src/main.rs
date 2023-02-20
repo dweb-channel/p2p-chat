@@ -1,4 +1,3 @@
-use async_std::io;
 use futures::{
     prelude::{stream::StreamExt, *},
     select,
@@ -11,7 +10,7 @@ use libp2p::{
 };
 use std::error::Error;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 

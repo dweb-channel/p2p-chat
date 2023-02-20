@@ -1,16 +1,16 @@
 [package]
-name = "chat"
+name = "ping"
 version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
 publish = false
 
 [[bin]]
+name = "ping"
 path = "src/main.rs"
-name = "chat"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libp2p.workspace = true
-tokio.workspace = true
+libp2p = {workspace = true}
+tokio = {workspace = true}
