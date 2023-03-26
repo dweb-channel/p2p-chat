@@ -10,5 +10,9 @@ default-run = "pchat"
 path = "src/main.rs"
 name = "pchat"
 
-[dependencies]
-clap = {workspace = true}
+[dependencies] 
+clap =  { workspace = true}
+tokio = { workspace = true}
+futures = { workspace = true}
+libp2p = { workspace = true}
+libp2p-quic = { workspace = true}

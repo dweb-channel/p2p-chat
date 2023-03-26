@@ -39,6 +39,10 @@
 
 [p2p-chat protocol](./core/protocol/README.md)
 
+## 随笔
+
+当前进行到第一步，也就是实现一个点对点的聊天，目前想直接通过mdns进行发现节点,使用quic(基于UDP)连接传输信息，然后收发简单的文本信息。
+
 ## 多地址
 
 + 当p2p 网络上的节点共享其联系信息时，它们会发送一个包含网
@@ -52,4 +56,4 @@
 
 + 节点的完整多地址就是 peer id 和网络地址的组合：
 o/ip4/192.158.1.23/tcp/1234/p2p/12D3KooWBu3fmjZgSMLkQ2pIDG35UmEay
-YBrhsk6WEelxcol]FbV
+YBrhsk6WEelxcolFbV
