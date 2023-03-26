@@ -1,5 +1,5 @@
 fn main() -> () {
-  println!("Start p2p-rust!!!")
+  println!("build p2p-rust!!!")
 }
 
 

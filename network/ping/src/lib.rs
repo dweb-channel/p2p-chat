@@ -3,7 +3,6 @@ use libp2p::swarm:: {keep_alive,SwarmEvent,Swarm};
 use libp2p::{identity, ping, Multiaddr, NetworkBehaviour, PeerId};
 use std::error::Error;
 
-#[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let new_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(new_key.public());

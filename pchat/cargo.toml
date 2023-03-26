@@ -9,3 +9,6 @@ default-run = "pchat"
 [[bin]]
 path = "src/main.rs"
 name = "pchat"
+
+[dependencies]
+clap = {workspace = true}
