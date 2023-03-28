@@ -24,7 +24,9 @@ base64 = "0.21.0"
 anyhow = "1.0.62"
 libp2p = {version = "0.51.1", features = ["tcp","dns", "mdns", "async-std", "gossipsub", "noise", "mplex", "yamux","ping","identify"] } 
 libp2p-quic = { version="0.7.0-alpha.3", features = ["tokio"] }
+libp2p-swarm-derive = {version = "0.32.0"}
 tokio = {version = "1.22.0",features = ["full"]}
+async-std = { version = "1.12", features = ["attributes"] }
 bytes = "1"
 futures = "0.3.26"
 clap = { version = "4.1.11"}

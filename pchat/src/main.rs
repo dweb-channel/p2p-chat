@@ -1,14 +1,14 @@
 // mod cli; // 命令行支持
 
-
+use async_std::io;
 use futures::{future::Either, prelude::*, select};
 use libp2p::{
     core::{muxing::StreamMuxerBox, transport::OrTransport, upgrade},
     gossipsub, identity, mdns, noise,
-    swarm::NetworkBehaviour,
-    swarm::{SwarmBuilder, SwarmEvent, behaviour},
+    swarm::{SwarmBuilder, SwarmEvent},
     tcp, yamux, PeerId, Transport,
 };
+use libp2p_swarm_derive::NetworkBehaviour;
 use libp2p_quic as quic;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
@@ -16,16 +16,9 @@ use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "ChatBehaviourEvent")]
 struct ChatBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::async_io::Behaviour,
-}
-
-#[allow(clippy::large_enum_variant)]
-enum ChatBehaviourEvent {
-    Gossipsub(gossipsub::Event),
-    Mdns(mdns::Event),
 }
 
 impl From<gossipsub::Event> for ChatBehaviourEvent {
