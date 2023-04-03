@@ -20,6 +20,7 @@ exclude = [ "pchat" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace.dependencies]
+pchat-account = { path = "core/account"}
 base64 = "0.21.0"
 anyhow = "1.0.62"
 libp2p = {version = "0.51.1", features = ["tcp","dns", "mdns", "async-std", "gossipsub", "noise", "mplex", "yamux","ping","identify"] } 

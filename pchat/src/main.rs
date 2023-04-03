@@ -4,12 +4,13 @@ use async_std::io;
 use futures::{future::Either, prelude::*, select};
 use libp2p::{
     core::{muxing::StreamMuxerBox, transport::OrTransport, upgrade},
-    gossipsub, identity, mdns, noise,
+    gossipsub, mdns, noise,
     swarm::{SwarmBuilder, SwarmEvent},
-    tcp, yamux, PeerId, Transport,
+    tcp, yamux, Transport,
 };
 use libp2p_swarm_derive::NetworkBehaviour;
 use libp2p_quic as quic;
+use pchat_account::Account;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
@@ -17,8 +18,8 @@ use std::time::Duration;
 
 #[derive(NetworkBehaviour)]
 struct ChatBehaviour {
-    gossipsub: gossipsub::Behaviour,
-    mdns: mdns::async_io::Behaviour,
+    gossipsub: gossipsub::Behaviour, // gossipsub 行为用于点对点广播消息， https://github.com/libp2p/specs/tree/master/pubsub/gossipsub
+    mdns: mdns::async_io::Behaviour, // Mdns 行为用于发现局域网中的其他节点。
 }
 
 impl From<gossipsub::Event> for ChatBehaviourEvent {
@@ -33,28 +34,26 @@ impl From<mdns::Event> for ChatBehaviourEvent {
     }
 }
 
-// We create a custom network behaviour that combines Gossipsub and Mdns.
-
+// 创建了一个结合了 Gossipsub 和 Mdns 的自定义网络行为。 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     println!("start p2p-chat");
+    // 创建账号
+    let user = Account::new();
+    
+    println!("Local peer id: {}", user.peer_id);
 
-    // Create a random PeerId
-    let id_keys = identity::Keypair::generate_ed25519();
-    let local_peer_id = PeerId::from(id_keys.public());
-    println!("Local peer id: {local_peer_id}");
-
-    // Set up an encrypted DNS-enabled TCP Transport over the Mplex protocol.
+    // 通过 Mplex 协议设置加密的启用 DNS 的 TCP 传输。
     let tcp_transport = tcp::async_io::Transport::new(tcp::Config::default().nodelay(true))
         .upgrade(upgrade::Version::V1)
         .authenticate(
-            noise::NoiseAuthenticated::xx(&id_keys).expect("signing libp2p-noise static keypair"),
+            noise::NoiseAuthenticated::xx(&user.id_keys).expect("signing libp2p-noise static keypair"),
         )
         .multiplex(yamux::YamuxConfig::default())
         .timeout(std::time::Duration::from_secs(20))
         .boxed();
-    let quic_transport = quic::tokio::Transport::new(quic::Config::new(&id_keys));
+    let quic_transport = quic::tokio::Transport::new(quic::Config::new(&user.id_keys));
     let transport = OrTransport::new(quic_transport, tcp_transport)
         .map(|either_output, _| match either_output {
             Either::Left((peer_id, muxer)) => (peer_id, StreamMuxerBox::new(muxer)),
@@ -62,24 +61,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .boxed();
 
-    // To content-address message, we can take the hash of message and use it as an ID.
+    // 对于内容地址消息，我们可以获取消息并且加上发送时间的哈希值并将其用作 ID。
     let message_id_fn = |message: &gossipsub::Message| {
         let mut s = DefaultHasher::new();
         message.data.hash(&mut s);
         gossipsub::MessageId::from(s.finish().to_string())
     };
 
-    // Set a custom gossipsub configuration
+    // 设置自定义 gossipsub 配置
     let gossipsub_config = gossipsub::ConfigBuilder::default()
-        .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
-        .validation_mode(gossipsub::ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
-        .message_id_fn(message_id_fn) // content-address messages. No two messages of the same content will be propagated.
+        .heartbeat_interval(Duration::from_secs(10)) // 设置为通过不使日志混乱来帮助调试
+        .validation_mode(gossipsub::ValidationMode::Strict) // 这设置了消息验证的类型。 默认值为 Strict（强制消息签名）
+        .message_id_fn(message_id_fn) // 内容地址消息。 不会传播相同内容的两条消息。
         .build()
         .expect("Valid config");
 
-    // build a gossipsub network behaviour
+    //建立订阅网络行为
     let mut gossipsub = gossipsub::Behaviour::new(
-        gossipsub::MessageAuthenticity::Signed(id_keys),
+        gossipsub::MessageAuthenticity::Signed(user.id_keys),
         gossipsub_config,
     )
     .expect("Correct configuration");
@@ -90,15 +89,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
-        let mdns = mdns::async_io::Behaviour::new(mdns::Config::default(), local_peer_id)?;
+        let mdns = mdns::async_io::Behaviour::new(mdns::Config::default(), user.peer_id)?;
         let behaviour = ChatBehaviour { gossipsub, mdns };
-        SwarmBuilder::with_async_std_executor(transport, behaviour, local_peer_id).build()
+        SwarmBuilder::with_async_std_executor(transport, behaviour, user.peer_id).build()
     };
 
-    // Read full lines from stdin
+    // 从 stdin 读取整行
     let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
 
-    // Listen on all interfaces and whatever port the OS assigns
+    //监听所有接口和操作系统分配的任何端口
     swarm.listen_on("/ip4/0.0.0.0/udp/0/quic-v1".parse()?)?;
     swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
 
