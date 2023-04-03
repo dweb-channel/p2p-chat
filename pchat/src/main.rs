@@ -9,32 +9,14 @@ use libp2p::{
     tcp, yamux, Transport,
 };
 use libp2p_quic as quic;
-use libp2p_swarm_derive::NetworkBehaviour;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
+use pchat::behaviour::*;
 use pchat_utils::message_id_generator::MessageIdGenerator;
 use pchat_account::Account;
 
-
-#[derive(NetworkBehaviour)]
-struct ChatBehaviour {
-    gossipsub: gossipsub::Behaviour, // gossipsub 行为用于点对点广播消息， https://github.com/libp2p/specs/tree/master/pubsub/gossipsub
-    mdns: mdns::async_io::Behaviour, // Mdns 行为用于发现局域网中的其他节点。
-}
-
-impl From<gossipsub::Event> for ChatBehaviourEvent {
-    fn from(event: gossipsub::Event) -> Self {
-        ChatBehaviourEvent::Gossipsub(event)
-    }
-}
-
-impl From<mdns::Event> for ChatBehaviourEvent {
-    fn from(event: mdns::Event) -> Self {
-        ChatBehaviourEvent::Mdns(event)
-    }
-}
 
 // 创建了一个结合了 Gossipsub 和 Mdns 的自定义网络行为。 
 
@@ -104,8 +86,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
 
     //监听所有接口和操作系统分配的任何端口
-    swarm.listen_on("/ip4/0.0.0.0/udp/0/quic-v1".parse()?)?;
-    swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+    swarm.listen_on(user.address)?;
 
     println!("Enter messages via STDIN and they will be sent to connected peers using Gossipsub");
 
