@@ -8,12 +8,13 @@ use libp2p::{
     swarm::{SwarmBuilder, SwarmEvent},
     tcp, yamux, PeerId, Transport,
 };
-use libp2p_swarm_derive::NetworkBehaviour;
 use libp2p_quic as quic;
+use libp2p_swarm_derive::NetworkBehaviour;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
+use utils::message_id_generator::MessageIdGenerator;
 
 #[derive(NetworkBehaviour)]
 struct ChatBehaviour {
@@ -34,7 +35,6 @@ impl From<mdns::Event> for ChatBehaviourEvent {
 }
 
 // We create a custom network behaviour that combines Gossipsub and Mdns.
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -62,10 +62,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .boxed();
 
+    // init message id options
+    MessageIdGenerator::init();
+
     // To content-address message, we can take the hash of message and use it as an ID.
-    let message_id_fn = |message: &gossipsub::Message| {
+    let message_id_fn = |_message: &gossipsub::Message| {
         let mut s = DefaultHasher::new();
-        message.data.hash(&mut s);
+        // message.data.hash(&mut s);
+        MessageIdGenerator::next_id().hash(&mut s);
         gossipsub::MessageId::from(s.finish().to_string())
     };
 
@@ -143,4 +147,3 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 }
-

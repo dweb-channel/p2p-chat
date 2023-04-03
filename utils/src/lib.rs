@@ -1,3 +1,1 @@
-fn main() {
-    println!("Hello, world!");
-}
+pub mod message_id_generator;
