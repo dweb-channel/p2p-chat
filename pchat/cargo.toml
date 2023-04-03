@@ -20,3 +20,4 @@ libp2p-quic = { workspace = true }
 libp2p-swarm-derive = { workspace = true }
 
 pchat-account = { workspace = true }
+pchat-utils = { workspace = true }

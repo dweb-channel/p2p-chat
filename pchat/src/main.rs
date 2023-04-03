@@ -8,13 +8,16 @@ use libp2p::{
     swarm::{SwarmBuilder, SwarmEvent},
     tcp, yamux, Transport,
 };
-use libp2p_swarm_derive::NetworkBehaviour;
 use libp2p_quic as quic;
-use pchat_account::Account;
+use libp2p_swarm_derive::NetworkBehaviour;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
+
+use pchat_utils::message_id_generator::MessageIdGenerator;
+use pchat_account::Account;
+
 
 #[derive(NetworkBehaviour)]
 struct ChatBehaviour {
@@ -35,7 +38,6 @@ impl From<mdns::Event> for ChatBehaviourEvent {
 }
 
 // 创建了一个结合了 Gossipsub 和 Mdns 的自定义网络行为。 
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     println!("start p2p-chat");
@@ -62,9 +64,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .boxed();
 
     // 对于内容地址消息，我们可以获取消息并且加上发送时间的哈希值并将其用作 ID。
-    let message_id_fn = |message: &gossipsub::Message| {
+    let message_id_fn = |_message: &gossipsub::Message| {
         let mut s = DefaultHasher::new();
-        message.data.hash(&mut s);
+        // message.data.hash(&mut s);
+        MessageIdGenerator::next_id().hash(&mut s);
         gossipsub::MessageId::from(s.finish().to_string())
     };
 
@@ -142,4 +145,3 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 }
-
