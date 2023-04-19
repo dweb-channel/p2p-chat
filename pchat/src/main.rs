@@ -4,7 +4,7 @@ use async_std::io;
 use futures::{future::Either, prelude::*, select};
 use libp2p::{
     core::{muxing::StreamMuxerBox, transport::OrTransport, upgrade},
-    gossipsub, mdns, noise,
+    gossipsub::{self}, mdns, noise,
     swarm::{SwarmBuilder, SwarmEvent},
     tcp, yamux, Transport,
 };
@@ -123,7 +123,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     ),
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Local node is listening on {address}");
-                }
+                },
+                SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                    println!("Connected to {}", peer_id);
+                },
+                SwarmEvent::ConnectionClosed { peer_id, .. } => {
+                    println!("Disconnected from {}", peer_id);
+                },
+                SwarmEvent::IncomingConnection { .. } => {
+                    println!("Incoming connection");
+                },
+                SwarmEvent::IncomingConnectionError { .. } => {
+                    println!("Incoming connection error");
+                },
                 _ => {}
             }
         }
