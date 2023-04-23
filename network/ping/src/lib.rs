@@ -1,9 +1,9 @@
 use libp2p::{
-    identity, ping,
-    swarm::{keep_alive, NetworkBehaviour, SwarmBuilder, SwarmEvent},
-    Multiaddr, PeerId,
+    ping,
+    identify,
 };
-use std::error::Error;
+
+use libp2p_swarm_derive::NetworkBehaviour;
 
 pub struct PingFactory {
     remote_id: String,
@@ -11,6 +11,31 @@ pub struct PingFactory {
 
 impl PingFactory {
     
+}
+
+
+#[derive(NetworkBehaviour)]
+#[behaviour(out_event = "Event")]
+struct PingBehaviour {
+  identify: identify::Behaviour,
+  ping: ping::Behaviour,
+}
+
+enum Event {
+  Identify(identify::Event),
+  Ping(ping::Event),
+}
+
+impl From<identify::Event> for Event {
+  fn from(event: identify::Event) -> Self {
+    Self::Identify(event)
+  }
+}
+
+impl From<ping::Event> for Event {
+  fn from(event: ping::Event) -> Self {
+    Self::Ping(event)
+  }
 }
 
 // async fn main() -> Result<(), Box<dyn Error>> {

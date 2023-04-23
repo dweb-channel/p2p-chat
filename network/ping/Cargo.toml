@@ -11,3 +11,4 @@ publish = false
 [dependencies]
 libp2p = {workspace = true}
 tokio = {workspace = true}
+libp2p-swarm-derive = { workspace = true }

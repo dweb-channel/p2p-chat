@@ -3,6 +3,7 @@
 
 use libp2p::{PeerId, identity::{self, Keypair}, Multiaddr};
 
+#[derive(Clone)]
 pub struct Account {
     pub id_keys: Keypair,
     // pub username: String, // todo  应用层逻辑

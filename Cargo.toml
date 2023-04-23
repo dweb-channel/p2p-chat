@@ -41,6 +41,7 @@ libp2p = { version = "0.51.1", features = [
 ] }
 libp2p-quic = { version = "0.7.0-alpha.3", features = ["tokio"] }
 libp2p-swarm-derive = { version = "0.32.0" }
+fluence-fork-libp2p-swarm = { version = "0.28"}
 tokio = { version = "1.22.0", features = ["full"] }
 async-std = { version = "1.12", features = ["attributes"] }
 bytes = "1"

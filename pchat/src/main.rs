@@ -9,10 +9,7 @@ use libp2p::{
     tcp, yamux, Transport,
 };
 use libp2p_quic as quic;
-use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
-use std::hash::{Hash, Hasher};
-use std::time::Duration;
 use pchat::behaviour::*;
 use pchat_utils::message_id_generator::MessageIdGenerator;
 use pchat_account::Account;
@@ -47,38 +44,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // init message id options
     MessageIdGenerator::init();
-
-    // 对于内容地址消息，我们可以获取消息并且加上发送时间的哈希值并将其用作 ID。
-    let message_id_fn = |_message: &gossipsub::Message| {
-        let mut s = DefaultHasher::new();
-        // message.data.hash(&mut s);
-        MessageIdGenerator::next_id().hash(&mut s);
-        gossipsub::MessageId::from(s.finish().to_string())
-    };
-
-    // 设置自定义 gossipsub 配置
-    let gossipsub_config = gossipsub::ConfigBuilder::default()
-        .heartbeat_interval(Duration::from_secs(10)) // 设置为通过不使日志混乱来帮助调试
-        .validation_mode(gossipsub::ValidationMode::Strict) // 这设置了消息验证的类型。 默认值为 Strict（强制消息签名）
-        .message_id_fn(message_id_fn) // 内容地址消息。 不会传播相同内容的两条消息。
-        .build()
-        .expect("Valid config");
-
-    //建立订阅网络行为
-    let mut gossipsub = gossipsub::Behaviour::new(
-        gossipsub::MessageAuthenticity::Signed(user.id_keys),
-        gossipsub_config,
-    )
-    .expect("Correct configuration");
     // Create a Gossipsub topic
     let topic = gossipsub::IdentTopic::new("test-net");
-    // subscribes to our topic
-    gossipsub.subscribe(&topic)?;
+    // // subscribes to our topic
+    // gossipsub.subscribe(&topic)?;
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
-        let mdns = mdns::async_io::Behaviour::new(mdns::Config::default(), user.peer_id)?;
-        let behaviour = ChatBehaviour { gossipsub, mdns };
+        let behaviour = ChatBehaviour::new(user.clone());
         SwarmBuilder::with_async_std_executor(transport, behaviour, user.peer_id).build()
     };
 
