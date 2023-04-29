@@ -1,15 +1,14 @@
+//! ChatBehaviour 将作为整个应用的网络层
 use libp2p::{
     gossipsub::{self, ConfigBuilder, MessageId, PublishError},
-    mdns::{self},
-    swarm::NetworkBehaviour,
-    PeerId,
+    mdns,
 };
 use libp2p_swarm::NetworkBehaviourEventProcess;
 use libp2p_swarm_derive::NetworkBehaviour;
 use pchat_account::Account;
 use pchat_utils::message_id_generator::MessageIdGenerator;
 use std::{
-    collections::{hash_map::DefaultHasher, HashSet},
+    collections::{hash_map::DefaultHasher},
     hash::{Hash, Hasher},
     time::Duration,
 };
@@ -20,18 +19,24 @@ use std::{
 pub struct ChatBehaviour {
     pub gossipsub: gossipsub::Behaviour, // gossipsub 行为用于点对点广播消息， https://github.com/libp2p/specs/tree/master/pubsub/gossipsub
     pub mdns: mdns::async_io::Behaviour, // Mdns 行为用于发现局域网中的其他节点。
-                                         // #[behaviour(ignore)]
-                                         // #[allow(dead_code)]
-                                         // pub peers: HashSet<PeerId>,              // 管理已经连接的节点
 }
 
 impl NetworkBehaviourEventProcess<mdns::Event> for ChatBehaviour {
     // 处理mdns事件
     fn inject_event(&mut self, event: mdns::Event) {
         match event {
+            // 新对等点
             mdns::Event::Discovered(list) => {
                 for (peer, _) in list {
                     self.gossipsub.add_explicit_peer(&peer);
+                }
+            }
+            // 移除对等点
+            mdns::Event::Expired(expired_list) => {
+                for (peer, _addr) in expired_list {
+                    if !self.mdns.has_node(&peer) {
+                        self.gossipsub.remove_explicit_peer(&peer);
+                    }
                 }
             }
             _ => {}
@@ -47,7 +52,15 @@ impl NetworkBehaviourEventProcess<gossipsub::Event> for ChatBehaviour {
                     // self.events.push_back(message_string);
                     println!("NetworkBehaviourEventProcess gossipsub: {message_string}");
                 }
-            }
+            },
+            // 订阅该主题
+            gossipsub::Event::Subscribed { .. } => {
+                println!("Subscribed to topic");
+            },
+            // 退出该主题
+            gossipsub::Event::Unsubscribed { .. } => {
+                println!("Unsubscribed from topic");
+            },
             _ => {}
         }
     }
@@ -79,32 +92,28 @@ impl ChatBehaviour {
 
         let mdns = mdns::async_io::Behaviour::new(mdns::Config::default(), user.peer_id).unwrap();
 
-        Self {
-            gossipsub,
-            mdns,
-            // peers: HashSet::new(),
-        }
+        Self { gossipsub, mdns }
     }
     /// 将消息作为String类型广播到所有已知的对等节点
     pub fn broadcast_message(&mut self, message: &[u8]) -> Result<MessageId, PublishError> {
         let topic = gossipsub::IdentTopic::new("test-net");
         return self.gossipsub.publish(topic, message);
     }
-    /// 该方法允许我们将消息直接发送到指定的对等节点，而不是广播到所有对等节点。
+    /**
+     * 该方法允许我们将消息直接发送到指定的对等节点，而不是广播到所有对等节点。
+     */
     pub fn send_direct_message(
         &mut self,
         peer_id: libp2p::PeerId,
         message: &[u8],
     ) -> Result<(), String> {
-        self.gossipsub
-            .publish(gossipsub::IdentTopic::new("direct-messages"), message)
-            .map_err(|e| e.to_string())?;
-        Ok(())
-        // if self.gossipsub.blacklist_peer(&peer_id) {
-        //     self.gossipsub
-        //         .publish(gossipsub::IdentTopic::new("direct-messages"), message)
-        //         .map_err(|e| e.to_string())?;
-        //     Ok(())
+        // 看看有没有被列入黑名单
+        // let peer_score =self.gossipsub.blacklist_peer(&peer_id);
+        // if peer_score {
+            self.gossipsub
+                .publish(gossipsub::IdentTopic::new("direct-messages"), message)
+                .map_err(|e| e.to_string())?;
+            Ok(())
         // } else {
         //     Err(format!("Peer {:?} not found in peer list", peer_id))
         // }

@@ -4,32 +4,33 @@ use async_std::io;
 use futures::{future::Either, prelude::*, select};
 use libp2p::{
     core::{muxing::StreamMuxerBox, transport::OrTransport, upgrade},
-    gossipsub::{self}, mdns, noise,
-    swarm::{SwarmBuilder, SwarmEvent},
-    tcp, yamux, Transport,
+    gossipsub::{self, Message},
+    noise,
+    swarm::{SwarmBuilder, dial_opts::DialOpts},
+    tcp, yamux, Transport, PeerId,
 };
 use libp2p_quic as quic;
-use std::error::Error;
 use pchat::behaviour::*;
-use pchat_utils::message_id_generator::MessageIdGenerator;
 use pchat_account::Account;
+use pchat_utils::message_id_generator::MessageIdGenerator;
+use std::{error::Error};
 
-
-// 创建了一个结合了 Gossipsub 和 Mdns 的自定义网络行为。 
+// 创建了一个结合了 Gossipsub 和 Mdns 的自定义网络行为。
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     println!("start p2p-chat");
     // 创建账号
     let user = Account::new();
-    
+
     println!("Local peer id: {}", user.peer_id);
 
     // 通过 Mplex 协议设置加密的启用 DNS 的 TCP 传输。
     let tcp_transport = tcp::async_io::Transport::new(tcp::Config::default().nodelay(true))
         .upgrade(upgrade::Version::V1)
         .authenticate(
-            noise::NoiseAuthenticated::xx(&user.id_keys).expect("signing libp2p-noise static keypair"),
+            noise::NoiseAuthenticated::xx(&user.id_keys)
+                .expect("signing libp2p-noise static keypair"),
         )
         .multiplex(yamux::YamuxConfig::default())
         .timeout(std::time::Duration::from_secs(20))
@@ -44,34 +45,97 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // init message id options
     MessageIdGenerator::init();
-    // Create a Gossipsub topic
+    // 创建主题
     let topic = gossipsub::IdentTopic::new("test-net");
-    // // subscribes to our topic
-    // gossipsub.subscribe(&topic)?;
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
-        let behaviour = ChatBehaviour::new(user.clone());
+        let mut behaviour = ChatBehaviour::new(user.clone());
+        // 订阅主题
+        behaviour.gossipsub.subscribe(&topic)?;
         SwarmBuilder::with_async_std_executor(transport, behaviour, user.peer_id).build()
     };
-
-    // 从 stdin 读取整行
-    let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
 
     //监听所有接口和操作系统分配的任何端口
     swarm.listen_on(user.address)?;
 
-    println!("Enter messages via STDIN and they will be sent to connected peers using Gossipsub");
+    // 打印监听地址
+    for addr in swarm.listeners() {
+        println!("Listening on: {:?}", addr);
+    }
 
-    // Kick it off
+    // 从 stdin 读取整行
+    let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
+
+    // 异步处理事件
     loop {
         select! {
             line = stdin.select_next_some() => {
-                if let Err(e) = swarm
-                    .behaviour_mut().gossipsub
-                    .publish(topic.clone(), line.expect("Stdin not to close").as_bytes()) {
-                    println!("Publish error: {e:?}");
-                }
+                    let line = line.expect("stdin closed");
+                    let mut parts = line.split_whitespace();
+          
+                    match parts.next() {
+                        Some("send") => {
+                            // 发送点对点消息
+                            if let (Some(peer), Some(msg)) = (parts.next(), parts.next()) {
+                                let peer_id:PeerId = match peer.parse() {
+                                    Ok(peer_id) => peer_id,
+                                    Err(err) => {
+                                        eprintln!("Invalid peer id: {:?}", err);
+                                        continue;
+                                    }
+                                };
+                                let msg_bytes = msg.as_bytes().to_vec();
+                                let message = Message {
+                                    source:Some( peer_id.clone()),
+                                    data: msg_bytes,
+                                    sequence_number: None,
+                                    topic:topic.hash()
+                                };
+                                swarm.behaviour_mut().gossipsub.publish(topic.clone(),message);
+                            };
+                            Ok(())
+                        }
+                        Some("broadcast") => {
+                          // 发送群发消息
+                            if let Some(msg) = parts.next() {
+                                let msg_bytes = msg.as_bytes();
+                                swarm.behaviour_mut().gossipsub.publish(topic.clone(), msg_bytes);
+                            };
+                            Ok(())
+                        }
+                        Some("connect") => {
+                            // 连接到其他节点
+                            if let Some(addr) = parts.next() {
+                                let addr = match addr.parse() {
+                                    Ok(addr) => addr,
+                                    Err(err) => {
+                                        eprintln!("Invalid multiaddr: {:?}", err);
+                                        continue;
+                                    }
+                                };
+                                swarm.dial(DialOpts::unknown_peer_id().address(addr).build()).expect("Failed to dial address");
+                            };
+                            Ok(())
+                        }
+                        Some("help") | Some(_) | None => {
+                            eprintln!(
+                                "Available commands:\n\
+                                 send PEER_ID MESSAGE\n\
+                                 broadcast MESSAGE\n\
+                                 connect MULTIADDR\n\
+                                 help\n\
+                                 exit"
+                            );
+                            Ok(())
+                        }
+                        Some("exit") => {
+                            break;
+                        },
+                        _ => {
+                            break;
+                        },
+                    };
             },
             event = swarm.select_next_some() => match event {
                 SwarmEvent::Behaviour(ChatBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
@@ -113,4 +177,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
     }
+    Ok(())
 }
