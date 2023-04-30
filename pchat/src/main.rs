@@ -7,13 +7,13 @@ use libp2p::{
     gossipsub::{self, Message},
     noise,
     swarm::{SwarmBuilder, dial_opts::DialOpts, SwarmEvent},
-    tcp, yamux, Transport, PeerId, mdns,
+    tcp, yamux, Transport, PeerId, mdns, ping,
 };
 use libp2p_quic as quic;
 use pchat::behaviour::*;
 use pchat_account::Account;
 use pchat_utils::message_id_generator::MessageIdGenerator;
-use std::{error::Error};
+use std::error::Error;
 
 // 创建了一个结合了 Gossipsub 和 Mdns 的自定义网络行为。
 
@@ -128,6 +128,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                  exit"
                             );
                         }
+                        #[allow(unreachable_patterns)]
                         Some("exit") => {
                             break;
                         },
@@ -169,6 +170,45 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 SwarmEvent::IncomingConnectionError { .. } => {
                     println!("Incoming connection error");
                 },
+                // ping 消息
+                SwarmEvent::Behaviour(ChatBehaviourEvent::Ping(event)) => {
+                    match event {
+                        ping::Event {
+                            peer,
+                            result: Result::Ok(ping::Success::Ping { rtt }),
+                        } => {
+                            println!(
+                                "ping: rtt to {} is {} ms",
+                                peer.to_base58(),
+                                rtt.as_millis()
+                            );
+                        }
+                        ping::Event {
+                            peer,
+                            result: Result::Ok(ping::Success::Pong),
+                        } => {
+                            println!("ping: pong from {}", peer.to_base58());
+                        }
+                        ping::Event {
+                            peer,
+                            result: Result::Err(ping::Failure::Timeout),
+                        } => {
+                            println!("ping: timeout to {}", peer.to_base58());
+                        }
+                        ping::Event {
+                            peer,
+                            result: Result::Err(ping::Failure::Unsupported),
+                        } => {
+                            println!("ping: {} does not support ping protocol", peer.to_base58());
+                        }
+                        ping::Event {
+                            peer,
+                            result: Result::Err(ping::Failure::Other { error }),
+                        } => {
+                            println!("ping: ping::Failure with {}: {error}", peer.to_base58());
+                        }
+                    }
+                }
                 _ => {}
             }
         }

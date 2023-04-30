@@ -1,7 +1,7 @@
 //! ChatBehaviour 将作为整个应用的网络层
 use libp2p::{
     gossipsub::{self, ConfigBuilder, MessageId, PublishError},
-    mdns,
+    mdns, identify, ping,
 };
 use libp2p_swarm::NetworkBehaviourEventProcess;
 use libp2p_swarm_derive::NetworkBehaviour;
@@ -19,7 +19,10 @@ use std::{
 pub struct ChatBehaviour {
     pub gossipsub: gossipsub::Behaviour, // gossipsub 行为用于点对点广播消息， https://github.com/libp2p/specs/tree/master/pubsub/gossipsub
     pub mdns: mdns::async_io::Behaviour, // Mdns 行为用于发现局域网中的其他节点。
+    identify: identify::Behaviour,
+    ping: ping::Behaviour,
 }
+
 
 impl NetworkBehaviourEventProcess<mdns::Event> for ChatBehaviour {
     // 处理mdns事件
@@ -85,14 +88,19 @@ impl ChatBehaviour {
             .expect("Valid config");
 
         let gossipsub = gossipsub::Behaviour::new(
-            gossipsub::MessageAuthenticity::Signed(user.id_keys),
+            gossipsub::MessageAuthenticity::Signed(user.id_keys.clone()),
             gossipsub_config,
         )
         .expect("Correct configuration");
 
         let mdns = mdns::async_io::Behaviour::new(mdns::Config::default(), user.peer_id).unwrap();
 
-        Self { gossipsub, mdns }
+        let identify = identify::Behaviour::new(identify::Config::new(
+            "/ipfs/0.1.0".into(),
+            user.id_keys.public(),
+        ));
+        let ping = ping::Behaviour::new(ping::Config::new());
+        Self { gossipsub, mdns,identify,ping }
     }
     /// 将消息作为String类型广播到所有已知的对等节点
     pub fn broadcast_message(&mut self, message: &[u8]) -> Result<MessageId, PublishError> {
@@ -129,6 +137,18 @@ impl From<mdns::Event> for ChatBehaviourEvent {
         ChatBehaviourEvent::Mdns(event)
     }
 }
+impl From<identify::Event> for ChatBehaviourEvent {
+    fn from(event: identify::Event) -> Self {
+        ChatBehaviourEvent::Identify(event)
+    }
+}
+
+impl From<ping::Event> for ChatBehaviourEvent {
+    fn from(event: ping::Event) -> Self {
+        ChatBehaviourEvent::Ping(event)
+    }
+}
+
 
 // #[allow(clippy::large_enum_variant)]
 // #[derive(Debug)]

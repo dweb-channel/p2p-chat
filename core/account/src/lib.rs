@@ -15,7 +15,7 @@ impl Account {
     pub fn new() -> Self {
            // Create a random PeerId
     let id_keys = identity::Keypair::generate_ed25519();
-    let local_peer_id = PeerId::from(id_keys.public());
+    let local_peer_id = PeerId::from(id_keys.clone().public());
     let listen_address = "/ip4/0.0.0.0/tcp/0".parse::<Multiaddr>().unwrap();
         Self {
             id_keys,
