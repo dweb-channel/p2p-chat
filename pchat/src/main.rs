@@ -6,8 +6,8 @@ use libp2p::{
     core::{muxing::StreamMuxerBox, transport::OrTransport, upgrade},
     gossipsub::{self, Message},
     noise,
-    swarm::{SwarmBuilder, dial_opts::DialOpts},
-    tcp, yamux, Transport, PeerId,
+    swarm::{SwarmBuilder, dial_opts::DialOpts, SwarmEvent},
+    tcp, yamux, Transport, PeerId, mdns,
 };
 use libp2p_quic as quic;
 use pchat::behaviour::*;
@@ -87,22 +87,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 };
                                 let msg_bytes = msg.as_bytes().to_vec();
                                 let message = Message {
-                                    source:Some( peer_id.clone()),
-                                    data: msg_bytes,
+                                    source:Some(peer_id.clone()),
+                                    data: msg_bytes.clone(),
                                     sequence_number: None,
                                     topic:topic.hash()
                                 };
-                                swarm.behaviour_mut().gossipsub.publish(topic.clone(),message);
+                                // swarm.behaviour_mut().send_direct_message(peer_id, message)
+                                // swarm.behaviour_mut().gossipsub.publish(topic.clone(),message)?;
                             };
-                            Ok(())
                         }
                         Some("broadcast") => {
                           // 发送群发消息
                             if let Some(msg) = parts.next() {
                                 let msg_bytes = msg.as_bytes();
-                                swarm.behaviour_mut().gossipsub.publish(topic.clone(), msg_bytes);
+                                if let Err(e) = swarm.behaviour_mut().gossipsub.publish(topic.clone(), msg_bytes) {
+                                    println!("broadcast error: {:?}",e);
+                                }
                             };
-                            Ok(())
                         }
                         Some("connect") => {
                             // 连接到其他节点
@@ -116,7 +117,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 };
                                 swarm.dial(DialOpts::unknown_peer_id().address(addr).build()).expect("Failed to dial address");
                             };
-                            Ok(())
                         }
                         Some("help") | Some(_) | None => {
                             eprintln!(
@@ -127,12 +127,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                  help\n\
                                  exit"
                             );
-                            Ok(())
                         }
                         Some("exit") => {
-                            break;
-                        },
-                        _ => {
                             break;
                         },
                     };

@@ -99,9 +99,7 @@ impl ChatBehaviour {
         let topic = gossipsub::IdentTopic::new("test-net");
         return self.gossipsub.publish(topic, message);
     }
-    /**
-     * 该方法允许我们将消息直接发送到指定的对等节点，而不是广播到所有对等节点。
-     */
+    /// 该方法允许我们将消息直接发送到指定的对等节点，而不是广播到所有对等节点。
     pub fn send_direct_message(
         &mut self,
         peer_id: libp2p::PeerId,
