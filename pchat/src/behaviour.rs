@@ -42,7 +42,6 @@ impl NetworkBehaviourEventProcess<mdns::Event> for ChatBehaviour {
                     }
                 }
             }
-            _ => {}
         }
     }
 }
@@ -110,7 +109,7 @@ impl ChatBehaviour {
     /// 该方法允许我们将消息直接发送到指定的对等节点，而不是广播到所有对等节点。
     pub fn send_direct_message(
         &mut self,
-        peer_id: libp2p::PeerId,
+        _peer_id: libp2p::PeerId,
         message: &[u8],
     ) -> Result<(), String> {
         // 看看有没有被列入黑名单

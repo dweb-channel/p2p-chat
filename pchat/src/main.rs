@@ -7,7 +7,7 @@ use libp2p::{
     gossipsub::{self, Message},
     noise,
     swarm::{SwarmBuilder, dial_opts::DialOpts, SwarmEvent},
-    tcp, yamux, Transport, PeerId, mdns, ping,
+    tcp, yamux, Transport, PeerId, mdns, ping, Multiaddr,
 };
 use libp2p_quic as quic;
 use pchat::behaviour::*;
@@ -59,6 +59,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //监听所有接口和操作系统分配的任何端口
     swarm.listen_on(user.address)?;
 
+    // let (out_msg_sender, out_msg_receiver) = channel
+    // let (in_msg_sender, in_msg_receiver) = channel::unbounded();
+
     // 打印监听地址
     for addr in swarm.listeners() {
         println!("Listening on: {:?}", addr);
@@ -78,22 +81,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         Some("send") => {
                             // 发送点对点消息
                             if let (Some(peer), Some(msg)) = (parts.next(), parts.next()) {
-                                let peer_id:PeerId = match peer.parse() {
-                                    Ok(peer_id) => peer_id,
+                                // let peer_id:PeerId = match peer.parse() {
+                                //     Ok(peer_id) => peer_id,
+                                //     Err(err) => {
+                                //         eprintln!("Invalid peer id: {:?}", err);
+                                //         continue;
+                                //     }
+                                // };
+                                let addr: Multiaddr = match peer.parse() {
+                                    Ok(addr) => addr,
                                     Err(err) => {
-                                        eprintln!("Invalid peer id: {:?}", err);
+                                        eprintln!("Invalid multiaddr: {:?}", err);
                                         continue;
                                     }
                                 };
+                                swarm.dial(DialOpts::unknown_peer_id().address(addr).build()).expect("Failed to dial address");
+                        
                                 let msg_bytes = msg.as_bytes().to_vec();
-                                let message = Message {
-                                    source:Some(peer_id.clone()),
-                                    data: msg_bytes.clone(),
-                                    sequence_number: None,
-                                    topic:topic.hash()
-                                };
+                                // let _message = Message {
+                                //     source:Some(peer_id.clone()),
+                                //     data: msg_bytes.clone(),
+                                //     sequence_number: None,
+                                //     topic:topic.hash()
+                                // };
                                 // swarm.behaviour_mut().send_direct_message(peer_id, message)
-                                // swarm.behaviour_mut().gossipsub.publish(topic.clone(),message)?;
+                                swarm.behaviour_mut().gossipsub.publish(topic.clone(),msg_bytes)?;
                             };
                         }
                         Some("broadcast") => {
@@ -174,20 +186,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 SwarmEvent::Behaviour(ChatBehaviourEvent::Ping(event)) => {
                     match event {
                         ping::Event {
-                            peer,
-                            result: Result::Ok(ping::Success::Ping { rtt }),
+                            peer: _,
+                            result: Result::Ok(ping::Success::Ping { rtt: _ }),
                         } => {
-                            println!(
-                                "ping: rtt to {} is {} ms",
-                                peer.to_base58(),
-                                rtt.as_millis()
-                            );
+                            // println!(
+                            //     "ping: rtt to {} is {} ms",
+                            //     peer.to_base58(),
+                            //     rtt.as_millis()
+                            // );
                         }
                         ping::Event {
-                            peer,
+                            peer:_,
                             result: Result::Ok(ping::Success::Pong),
                         } => {
-                            println!("ping: pong from {}", peer.to_base58());
+                            // println!("ping: pong from {}", peer.to_base58());
                         }
                         ping::Event {
                             peer,
